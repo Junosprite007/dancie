@@ -9,6 +9,15 @@ import board
 import busio
 import displayio
 import i2cdisplaybus
+from digitalio import DigitalInOut, Direction, Pull
+from game_loop import run_game
+
+# Clear screen before starting game
+from helpers_esp32c3 import clear_displayio_bitmap
+from show_switch_number import display_active_switches
+
+# Run splash screen (loops until button pressed)
+from splash_screen import run_splash_screen
 
 # Setup display
 displayio.release_displays()
@@ -28,14 +37,28 @@ main_group = displayio.Group()
 main_group.append(tile_grid)
 display.root_group = main_group
 
+# Setup button (using same pin as your example: D2)
+button = DigitalInOut(board.D2)
+button.direction = Direction.INPUT
+button.pull = Pull.UP
+
 print("=== DANCIE ===")
 print(f"Free memory: {gc.mem_free()} bytes")
+print("Button configured on D2")
 
-# TODO: Add splash screen animation here
-# from splash_animation import run_splash_screen
-# run_splash_screen(display, bitmap)
+
+# run_splash_screen(display, bitmap, button)
+
+
+display.auto_refresh = False
+clear_displayio_bitmap(bitmap)
+display.refresh()
+
+gc.collect()
+print(f"Free memory after splash: {gc.mem_free()} bytes")
 
 # Start game
-from game_loop import run_game
+# run_game(display, bitmap)
 
-run_game(display, bitmap)
+# Test multiplexer buttons
+display_active_switches(display, main_group)

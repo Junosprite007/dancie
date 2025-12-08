@@ -225,3 +225,44 @@ def draw_collision_points(displayio_bitmap, centers, size=3, color=1, style="box
             # Draw single pixel
             if 0 <= cx < displayio_bitmap.width and 0 <= cy < displayio_bitmap.height:
                 displayio_bitmap[cx, cy] = color
+
+
+def i2c_bus_scanner():
+    import adafruit_displayio_ssd1306
+    import board
+    import busio
+    import displayio
+    import i2cdisplaybus
+
+    # Setup display with I2C scanning
+    displayio.release_displays()
+
+    print("Scanning I2C bus...")
+    i2c = busio.I2C(board.SCL, board.SDA)
+
+    # Wait for I2C to initialize
+    import time
+
+    time.sleep(0.5)
+
+    # Lock the I2C bus while scanning
+    while not i2c.try_lock():
+        pass
+
+    try:
+        print(
+            "I2C addresses found:", [hex(device_address) for device_address in i2c.scan()]
+        )
+    except Exception as e:
+        print(f"I2C scan error: {e}")
+    finally:
+        i2c.unlock()
+
+    # Now try to connect to display
+    try:
+        display_bus = i2cdisplaybus.I2CDisplayBus(i2c, device_address=0x3C)
+        display = adafruit_displayio_ssd1306.SSD1306(display_bus, width=128, height=64)
+        print("Display connected successfully!")
+    except ValueError as e:
+        print(f"Display connection failed: {e}")
+        print("Check your wiring!")
