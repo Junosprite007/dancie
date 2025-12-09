@@ -12,25 +12,26 @@ from helpers_esp32c3 import (
 )
 from splash_frames import SPLASH_FRAMES
 
-# def draw_text_press_start(displayio_bitmap):
-#     """
-#     Draw 'PRESS START' text on the display.
 
-#     For now, we'll use a simple approach. You can enhance this later
-#     with a proper font or bitmap text.
-#     """
-#     # Simple text representation as a small bitmap
-#     # This is a placeholder - you might want to use a proper font library
-#     # or create a bitmap text in your generator script
+def draw_text_press_start(displayio_bitmap):
+    """
+    Draw 'PRESS START' text on the display.
 
-#     # For now, let's draw some simple pixels to indicate text area
-#     # Center position for text (bottom third of screen)
-#     text_y = 50
+    For now, we'll use a simple approach. You can enhance this later
+    with a proper font or bitmap text.
+    """
+    # Simple text representation as a small bitmap
+    # This is a placeholder - you might want to use a proper font library
+    # or create a bitmap text in your generator script
 
-#     # Draw a simple indicator line
-#     for x in range(40, 88):  # Centered horizontally
-#         if 0 <= x < displayio_bitmap.width and 0 <= text_y < displayio_bitmap.height:
-#             displayio_bitmap[x, text_y] = 1
+    # For now, let's draw some simple pixels to indicate text area
+    # Center position for text (bottom third of screen)
+    text_y = 50
+
+    # Draw a simple indicator line
+    for x in range(40, 88):  # Centered horizontally
+        if 0 <= x < displayio_bitmap.width and 0 <= text_y < displayio_bitmap.height:
+            displayio_bitmap[x, text_y] = 1
 
 
 def run_splash_screen(display, bitmap, button):

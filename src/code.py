@@ -13,7 +13,12 @@ from digitalio import DigitalInOut, Direction, Pull
 from game_loop import run_game
 
 # Clear screen before starting game
-from helpers_esp32c3 import clear_displayio_bitmap
+from helpers_esp32c3 import (
+    clear_displayio_bitmap,
+    diagnose_multiplexer,
+    test_multiplexer_switches,
+    test_single_channel,
+)
 from show_switch_number import display_active_switches
 
 # Run splash screen (loops until button pressed)
@@ -37,14 +42,14 @@ main_group = displayio.Group()
 main_group.append(tile_grid)
 display.root_group = main_group
 
-# Setup button (using same pin as your example: D2)
-button = DigitalInOut(board.D2)
+# Setup button (using same pin as your example: D7)
+button = DigitalInOut(board.D7)
 button.direction = Direction.INPUT
 button.pull = Pull.UP
 
 print("=== DANCIE ===")
 print(f"Free memory: {gc.mem_free()} bytes")
-print("Button configured on D2")
+print("Button configured on D7")
 
 
 # run_splash_screen(display, bitmap, button)
@@ -61,4 +66,10 @@ print(f"Free memory after splash: {gc.mem_free()} bytes")
 # run_game(display, bitmap)
 
 # Test multiplexer buttons
-display_active_switches(display, main_group)
+# display_active_switches(display, main_group)
+
+# test_multiplexer_switches()
+
+diagnose_multiplexer()
+
+# test_single_channel(0)

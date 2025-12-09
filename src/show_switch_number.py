@@ -8,7 +8,8 @@ import board
 import displayio
 import terminalio
 from adafruit_display_text import label
-from digitalio import DigitalInOut, Direction, Pull
+from analogio import AnalogIn
+from digitalio import DigitalInOut, Direction
 
 
 def display_active_switches(display, main_group):
@@ -28,7 +29,7 @@ def display_active_switches(display, main_group):
     - S0 -> D8
     - S1 -> D9
     - S2 -> D10
-    - SIG -> D7
+    - SIG -> A2 (analog input with external 10kΩ pull-up to 3.3V)
     - S3 -> Not connected
     - EN -> GND (enable chip)
     - VCC -> 3V3
@@ -36,8 +37,8 @@ def display_active_switches(display, main_group):
 
     Switches:
     - Connect each normally-OPEN (NO) switch between mux channels C0-C7 and GND
-    - When NOT pressed: switch open, reads stable HIGH via pull-up
-    - When pressed: switch closed to GND, signal becomes unstable (flickering)
+    - When NOT pressed: reads ~2.9V (stable HIGH via pull-up)
+    - When pressed: signal may flicker between ~0.03V and 2.9V (instability)
     - We detect INSTABILITY as the pressed state
     - Channel 0 = Switch 1, Channel 1 = Switch 2, etc.
     """
@@ -52,10 +53,12 @@ def display_active_switches(display, main_group):
     s2 = DigitalInOut(board.D10)
     s2.direction = Direction.OUTPUT
 
-    # Initialize signal input pin (with pull-up so open = HIGH)
-    sig = DigitalInOut(board.D7)
-    sig.direction = Direction.INPUT
-    sig.pull = Pull.UP
+    # Use ANALOG input on A2 - this reads voltage as 0-65535
+    analog_sig = AnalogIn(board.A2)
+
+    # Voltage threshold: below this = LOW reading, above = HIGH reading
+    # Set threshold at 1.5V = (1.5 / 3.3) * 65535 ≈ 30000
+    VOLTAGE_THRESHOLD = 30000
 
     # Create 8 text labels in a 2x4 grid
     labels = []
@@ -82,15 +85,13 @@ def display_active_switches(display, main_group):
     print("Switch 3  Switch 4")
     print("Switch 5  Switch 6")
     print("Switch 7  Switch 8")
+    print(
+        f"Voltage threshold: {VOLTAGE_THRESHOLD} (~{VOLTAGE_THRESHOLD / 65535 * 3.3:.2f}V)"
+    )
     print("Press Ctrl+C to exit")
 
     # Track switch states
     prev_states = [False] * 8  # Display state (what we show on screen)
-
-    # For instability detection: track recent samples
-    sample_history = [[False] * 5 for _ in range(8)]  # Last 5 readings per channel
-    sample_index = [0] * 8  # Current position in circular buffer
-
     last_change = [0] * 8  # For logging state changes
     debounce_time = 0.1  # Only log changes after 100ms
 
@@ -102,10 +103,12 @@ def display_active_switches(display, main_group):
         time.sleep(0.001)  # Small delay for mux to switch
 
     def read_switch_raw(channel):
-        """Read raw switch state from specified channel."""
+        """Read raw switch state from specified channel using analog voltage."""
         select_channel(channel)
+        # Read analog value and convert to boolean
         # NO switch: closed = LOW (connected to GND), open = HIGH (pull-up)
-        return not sig.value  # True = closed/pressed
+        analog_value = analog_sig.value
+        return analog_value < VOLTAGE_THRESHOLD  # True = LOW/closed/pressed
 
     def detect_instability(channel):
         """
@@ -114,7 +117,7 @@ def display_active_switches(display, main_group):
         """
         # Take MORE samples over a longer period to catch flickering
         samples = []
-        for _ in range(10):  # Increased from 5 to 10 samples
+        for _ in range(10):  # 10 samples
             samples.append(read_switch_raw(channel))
             time.sleep(0.001)  # 1ms between samples (10ms total)
 
@@ -126,7 +129,7 @@ def display_active_switches(display, main_group):
 
         # If we see ANY changes (1+), signal is unstable = pressed
         # If we see 0 changes, signal is completely stable = not pressed
-        is_pressed = changes >= 1  # Changed from >= 2 to >= 1
+        is_pressed = changes >= 1
 
         return is_pressed
 
@@ -159,6 +162,7 @@ def display_active_switches(display, main_group):
 
     except KeyboardInterrupt:
         print("\nSwitch test stopped")
-        # Clean up labels
+        # Clean up
+        analog_sig.deinit()
         for text_label in labels:
             main_group.remove(text_label)
