@@ -4,34 +4,16 @@
 
 import time
 
-from game_config import DISPLAY_CENTER, FRAME_DELAY
+import displayio
+import terminalio
+from adafruit_display_text import label
+from game_config import DISPLAY_CENTER, DISPLAY_WIDTH, FRAME_DELAY
 from helpers_esp32c3 import (
     clear_displayio_bitmap,
     convert_bitmap_str_to_np,
     draw_numpy_to_displayio_bitmap,
 )
 from splash_frames import SPLASH_FRAMES
-
-
-def draw_text_press_start(displayio_bitmap):
-    """
-    Draw 'PRESS START' text on the display.
-
-    For now, we'll use a simple approach. You can enhance this later
-    with a proper font or bitmap text.
-    """
-    # Simple text representation as a small bitmap
-    # This is a placeholder - you might want to use a proper font library
-    # or create a bitmap text in your generator script
-
-    # For now, let's draw some simple pixels to indicate text area
-    # Center position for text (bottom third of screen)
-    text_y = 50
-
-    # Draw a simple indicator line
-    for x in range(40, 88):  # Centered horizontally
-        if 0 <= x < displayio_bitmap.width and 0 <= text_y < displayio_bitmap.height:
-            displayio_bitmap[x, text_y] = 1
 
 
 def run_splash_screen(display, bitmap, button):
@@ -56,32 +38,55 @@ def run_splash_screen(display, bitmap, button):
     print("Animating kaleidoscope...")
     print("Press button to start game!")
 
+    # Create "Press Start" text label
+    text_label = label.Label(terminalio.FONT, text="Press Start", color=0xFFFFFF)
+
+    # Center the text horizontally
+    bbox = text_label.bounding_box
+    text_width = bbox[2]
+    text_label.x = (DISPLAY_WIDTH // 2) - (text_width // 2)
+    text_label.y = 55  # Position near bottom of screen
+
+    # Create text group
+    text_group = displayio.Group()
+    text_group.append(text_label)
+
+    # Add text group to display (on top of bitmap)
+    root_group = display.root_group
+    root_group.append(text_group)
+
     # Convert frames on-the-fly to save memory
     frame_idx = 0
     num_frames = len(SPLASH_FRAMES)
 
     # Animation loop - continues until button pressed
-    while True:
-        # Check button (active LOW with pull-up)
-        if not button.value:
-            print("\n✓ Button pressed! Starting game...")
-            return True
+    try:
+        while True:
+            # Check button (active LOW with pull-up)
+            if not button.value:
+                print("\n✓ Button pressed! Starting game...")
+                # Clean up text group before returning
+                root_group.remove(text_group)
+                return True
 
-        # Animate splash screen
-        display.auto_refresh = False
-        clear_displayio_bitmap(bitmap)
+            # Animate splash screen
+            display.auto_refresh = False
+            clear_displayio_bitmap(bitmap)
 
-        # Draw current kaleidoscope frame
-        frame_np = convert_bitmap_str_to_np(SPLASH_FRAMES[frame_idx])
-        draw_numpy_to_displayio_bitmap(frame_np, bitmap, origin=DISPLAY_CENTER)
+            # Draw current kaleidoscope frame
+            frame_np = convert_bitmap_str_to_np(SPLASH_FRAMES[frame_idx])
+            draw_numpy_to_displayio_bitmap(frame_np, bitmap, origin=DISPLAY_CENTER)
 
-        # Draw "PRESS START" text (simple version)
-        draw_text_press_start(bitmap)
+            display.refresh()
 
-        display.refresh()
+            # Move to next frame (loop animation)
+            frame_idx = (frame_idx + 1) % num_frames
 
-        # Move to next frame (loop animation)
-        frame_idx = (frame_idx + 1) % num_frames
+            # Control frame rate
+            time.sleep(FRAME_DELAY)
 
-        # Control frame rate
-        time.sleep(FRAME_DELAY)
+    except Exception as e:
+        # Make sure to clean up on any error
+        if text_group in root_group:
+            root_group.remove(text_group)
+        raise e
